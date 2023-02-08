@@ -63,19 +63,19 @@ data:
   params:
     batch_size: 8
     wrap: false
-    num_workers: 10
+    num_workers: 2
     train:
       target: ldm.data.aiahmi.AIAHMITrain
       params:
-        size: 768
-        crop_size: 512
-        segmentation_to_float32: true
+        size: 256 
+          #crop_size: 512
+          #segmentation_to_float32: true
     validation:
       target: ldm.data.aiahmi.AIAHMIValidation
       params:
-        size: 768
-        crop_size: 512
-        segmentation_to_float32: true
+        size: 256 
+          #crop_size: 512
+          #segmentation_to_float32: true
 
 lightning:
   callbacks:

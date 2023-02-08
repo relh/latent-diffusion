@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import albumentations
 import PIL
 from PIL import Image
 from torch.utils.data import Dataset
@@ -26,11 +27,15 @@ class AIAHMIBase(Dataset):
         }
 
         self.size = size
+        print('this is config size')
+        print(self.size)
+        self.size = 256
         self.interpolation = {"linear": PIL.Image.LINEAR,
                               "bilinear": PIL.Image.BILINEAR,
                               "bicubic": PIL.Image.BICUBIC,
                               "lanczos": PIL.Image.LANCZOS, }[interpolation]
         self.flip = transforms.RandomHorizontalFlip(p=flip_p)
+        self.cropper = albumentations.CenterCrop(height=self.size, width=self.size)
 
     def __len__(self):
         return self._length
@@ -47,25 +52,32 @@ class AIAHMIBase(Dataset):
         #print(img.shape)
         cls = img[:, :(w // 2)]
         img = img[:, (w // 2):]
+
+        cropcls = self.cropper(image=cls)["image"]
+        image = self.cropper(image=img)["image"]
         #print(cls.shape)
         #print(img.shape)
-        crop = min(img.shape[0], img.shape[1])
-        h, w, = img.shape[0], img.shape[1]
-        cls = cls[(h - crop) // 2:(h + crop) // 2,
-              (w - crop) // 2:(w + crop) // 2]
-        img = img[(h - crop) // 2:(h + crop) // 2,
-              (w - crop) // 2:(w + crop) // 2]
-        #print(cls.shape)
-        #print(img.shape)
+        #crop = min(300, img.shape[0], img.shape[1])
+        #h, w, = img.shape[0], img.shape[1]
+        #cls = cls[(h - crop) // 2:(h + crop) // 2,
+        #      (w - crop) // 2:(w + crop) // 2]
+        #img = img[(h - crop) // 2:(h + crop) // 2,
+        #      (w - crop) // 2:(w + crop) // 2]
+        #print(cropcls.sum())
+        #print(image.sum())
 
-        #image = Image.fromarray(img)
-        #if self.size is not None:
-        #    image = image.resize((self.size, self.size), resample=self.interpolation)
-
+        cropcls = Image.fromarray(cropcls)
+        image = Image.fromarray(image)
+        if self.size is not None:
+            cropcls = cropcls.resize((self.size, self.size), resample=self.interpolation)
+            image = image.resize((self.size, self.size), resample=self.interpolation)
         #image = self.flip(image)
-        cls = np.array(cls).astype(np.uint8)
-        image = np.array(img).astype(np.uint8)
-        example["class"] = (cls / 127.5 - 1.0).astype(np.float32)
+        #print(cropcls)
+        #print(image)
+
+        cropcls = np.array(cropcls).astype(np.uint8)
+        image = np.array(image).astype(np.uint8)
+        example["class"] = (cropcls / 127.5 - 1.0).astype(np.float32)
         example["image"] = (image / 127.5 - 1.0).astype(np.float32)
         return example
 
@@ -83,7 +95,11 @@ class AIAHMIValidation(AIAHMIBase):
 if __name__ == "__main__": 
     import pdb
     aiahmi_train = AIAHMITrain()
+    all_crops = []
 
-    for i in range(10):
+    for i in range(100):
         data_zero = aiahmi_train[i]
+        #all_crops.append(data_zero["crop"])
+
+    #print(min(all_crops))
     pdb.set_trace()
