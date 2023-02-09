@@ -27,9 +27,6 @@ class AIAHMIBase(Dataset):
         }
 
         self.size = size
-        print('this is config size')
-        print(self.size)
-        self.size = 256
         self.interpolation = {"linear": PIL.Image.LINEAR,
                               "bilinear": PIL.Image.BILINEAR,
                               "bicubic": PIL.Image.BICUBIC,
