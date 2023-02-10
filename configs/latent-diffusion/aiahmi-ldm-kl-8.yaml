@@ -1,5 +1,5 @@
 model:
-  base_learning_rate: 2.0e-06
+  base_learning_rate: 1.0e-06
   target: ldm.models.diffusion.ddpm.LatentDiffusion
   params:
     linear_start: 0.0015
@@ -8,13 +8,13 @@ model:
     timesteps: 1000
     loss_type: l1
     first_stage_key: image
-    cond_stage_key: class 
+    cond_stage_key: class
     image_size: 64
     channels: 3
     concat_mode: true
+    conditioning_key: concat
     cond_stage_trainable: true
     monitor: val/loss
-    use_ema: False
 
     unet_config:
       target: ldm.modules.diffusionmodules.openaimodel.UNetModel
@@ -61,24 +61,24 @@ model:
       target: ldm.modules.encoders.modules.SpatialRescaler
       params:
         n_stages: 2
-        in_channels: 3 
+        in_channels: 3
         out_channels: 3
 data:
   target: main.DataModuleFromConfig
   params:
-    batch_size: 48
+    batch_size: 72 
     wrap: false
     num_workers: 2
     train:
       target: ldm.data.aiahmi.AIAHMITrain
       params:
-        size: 256 
+        size: 256
           #crop_size: 512
           #segmentation_to_float32: true
     validation:
       target: ldm.data.aiahmi.AIAHMIValidation
       params:
-        size: 256 
+        size: 256
           #crop_size: 512
           #segmentation_to_float32: true
 
