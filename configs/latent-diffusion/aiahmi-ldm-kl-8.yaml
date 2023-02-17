@@ -15,6 +15,7 @@ model:
     conditioning_key: concat
     cond_stage_trainable: true
     monitor: val/loss
+    use_ema: false 
 
     unet_config:
       target: ldm.modules.diffusionmodules.openaimodel.UNetModel
@@ -87,9 +88,6 @@ lightning:
     image_logger:
       target: main.ImageLogger
       params:
-        batch_frequency: 5000
-        max_images: 8
+        batch_frequency: 1000
+        max_images: 16
         increase_log_steps: False
-
-  trainer:
-    benchmark: True
