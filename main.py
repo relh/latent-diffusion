@@ -527,6 +527,8 @@ if __name__ == "__main__":
         else:
             gpuinfo = trainer_config["gpus"]
             print(f"Running on GPUs {gpuinfo}")
+            #trainer_config["devices"] = gpuinfo
+            #trainer_config["gpus"]
             cpu = False
         trainer_opt = argparse.Namespace(**trainer_config)
         lightning_config.trainer = trainer_config
