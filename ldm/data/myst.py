@@ -46,12 +46,12 @@ class MYSTBase(Dataset):
         example = dict((k, self.labels[k][i]) for k in self.labels)
         example_10 = dict((k, self.labels[k][i].replace('myst_images', 'myst_flow/10')) for k in self.labels)
         example_20 = dict((k, self.labels[k][i].replace('myst_images', 'myst_flow/20')) for k in self.labels)
-        example_30 = dict((k, self.labels[k][i].replace('myst_images', 'myst_flow/30')) for k in self.labels)
+        #example_30 = dict((k, self.labels[k][i].replace('myst_images', 'myst_flow/30')) for k in self.labels)
 
         try:
             flow_10 = np.load(example_10["file_path_"].replace('.png', '.npz'), allow_pickle=True, mmap_mode='r')['arr_0'] / 648.0 
             flow_20 = np.load(example_20["file_path_"].replace('.png', '.npz'), allow_pickle=True, mmap_mode='r')['arr_0'] / 648.0 
-            flow_30 = np.load(example_30["file_path_"].replace('.png', '.npz'), allow_pickle=True, mmap_mode='r')['arr_0'] / 648.0 
+            #flow_30 = np.load(example_30["file_path_"].replace('.png', '.npz'), allow_pickle=True, mmap_mode='r')['arr_0'] / 648.0 
         except:
             print('missing!')
             return self[random.randint(0, len(self))]
@@ -61,27 +61,27 @@ class MYSTBase(Dataset):
         frame_num = int(example["file_path_"].split('_')[-1].split('.')[0])
         image_10 = Image.open(example["file_path_"].replace(str(frame_num), str(frame_num+10)))
         image_20 = Image.open(example["file_path_"].replace(str(frame_num), str(frame_num+20)))
-        image_30 = Image.open(example["file_path_"].replace(str(frame_num), str(frame_num+30)))
+        #image_30 = Image.open(example["file_path_"].replace(str(frame_num), str(frame_num+30)))
 
         if not image_0.mode == "RGB":
             image_0 = image_0.convert("RGB")
             image_10 = image_10.convert("RGB")
             image_20 = image_20.convert("RGB")
-            image_30 = image_30.convert("RGB")
+            #image_30 = image_30.convert("RGB")
 
         image_0 = (np.array(image_0).astype(np.uint8) / 127.5 - 1.0).astype(np.float32)
         image_10 = (np.array(image_10).astype(np.uint8) / 127.5 - 1.0).astype(np.float32)
         image_20 = (np.array(image_20).astype(np.uint8) / 127.5 - 1.0).astype(np.float32)
-        image_30 = (np.array(image_30).astype(np.uint8) / 127.5 - 1.0).astype(np.float32)
+        #image_30 = (np.array(image_30).astype(np.uint8) / 127.5 - 1.0).astype(np.float32)
 
         image = np.concatenate((
             image_0,
             image_10,
             image_20,
-            image_30,
+            #image_30,
             flow_10,
             flow_20,
-            flow_30,
+            #flow_30,
         ), axis=2)
 
         example["class"] = image_0

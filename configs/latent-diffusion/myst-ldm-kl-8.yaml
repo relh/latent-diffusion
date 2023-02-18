@@ -10,7 +10,7 @@ model:
     first_stage_key: image
     cond_stage_key: class
     image_size: 64
-    channels: 18 
+    channels: 13 
     concat_mode: true
     conditioning_key: concat
     cond_stage_trainable: true
@@ -21,9 +21,9 @@ model:
       target: ldm.modules.diffusionmodules.openaimodel.UNetModel
       params:
         image_size: 64
-        in_channels: 21
-        out_channels: 18
-        model_channels: 128
+        in_channels: 16
+        out_channels: 13
+        model_channels: 64 
         attention_resolutions:
         - 32
         - 16
@@ -38,15 +38,15 @@ model:
     first_stage_config:
       target: ldm.models.autoencoder.VQModelInterface
       params:
-        embed_dim: 18
+        embed_dim: 13
         n_embed: 8192
         ddconfig:
           double_z: false
-          z_channels: 18
+          z_channels: 13
           resolution: 256
-          in_channels: 18
-          out_ch: 18
-          ch: 128
+          in_channels: 13
+          out_ch: 13
+          ch: 32 
           ch_mult:
           - 1
           - 2
@@ -66,9 +66,9 @@ model:
 data:
   target: main.DataModuleFromConfig
   params:
-    batch_size: 48 
+    batch_size: 1 
     wrap: false
-    num_workers: 2
+    num_workers: 1
     train:
       target: ldm.data.myst.MYSTTrain
       params:
