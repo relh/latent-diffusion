@@ -10,7 +10,7 @@ model:
     first_stage_key: image
     cond_stage_key: class
     image_size: 64
-    channels: 3
+    channels: 6
     concat_mode: true
     conditioning_key: concat
     cond_stage_trainable: true
@@ -21,8 +21,8 @@ model:
       target: ldm.modules.diffusionmodules.openaimodel.UNetModel
       params:
         image_size: 64
-        in_channels: 6
-        out_channels: 3
+        in_channels: 15
+        out_channels: 6
         model_channels: 128
         attention_resolutions:
         - 32
@@ -38,15 +38,15 @@ model:
     first_stage_config:
       target: ldm.models.autoencoder.VQModelInterface
       params:
-        embed_dim: 3
+        embed_dim: 6
         n_embed: 8192
         ckpt_path: models/first_stage_models/vq-f4/model.ckpt
         ddconfig:
           double_z: false
           z_channels: 3
           resolution: 256
-          in_channels: 3
-          out_ch: 3
+          in_channels: 6
+          out_ch: 6
           ch: 128
           ch_mult:
           - 1
@@ -62,8 +62,8 @@ model:
       target: ldm.modules.encoders.modules.SpatialRescaler
       params:
         n_stages: 2
-        in_channels: 3
-        out_channels: 3
+        in_channels: 9
+        out_channels: 9
 data:
   target: main.DataModuleFromConfig
   params:

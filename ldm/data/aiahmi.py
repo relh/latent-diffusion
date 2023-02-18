@@ -1,4 +1,5 @@
 import os
+import math
 import numpy as np
 import albumentations
 import PIL
@@ -15,10 +16,15 @@ class AIAHMIBase(Dataset):
                  interpolation="bicubic",
                  flip_p=0.5
                  ):
-        self.data_paths = txt_file
+        if txt_file is None:
+            self.data_paths = os.listdir(data_root)
+            self.image_paths = [x for x in self.data_paths if '.npz' in x]
+        else:
+            self.data_paths = txt_file
+            with open(self.data_paths, "r") as f:
+                self.image_paths = f.read().splitlines()
+
         self.data_root = data_root
-        with open(self.data_paths, "r") as f:
-            self.image_paths = f.read().splitlines()
         self._length = len(self.image_paths)
         self.labels = {
             "relative_file_path_": [l for l in self.image_paths],
@@ -37,21 +43,39 @@ class AIAHMIBase(Dataset):
     def __len__(self):
         return self._length
 
+    def crop(self, x):
+        x = x[(x.shape[0] - 256) // 2:-(x.shape[0] - 256) // 2, (x.shape[1] - 256) // 2:-(x.shape[1] - 256) // 2]
+        #print(x.shape)
+        if x.shape[0] != 256:
+            print(x.shape)
+        if x.shape[1] != 256:
+            print(x.shape)
+        return x
+
     def __getitem__(self, i):
         example = dict((k, self.labels[k][i]) for k in self.labels)
-        image = Image.open(example["file_path_"])
-        if not image.mode == "RGB":
-            image = image.convert("RGB")
+
+        npz = np.load(example['file_path_'], allow_pickle=True, mmap_mode='r')
+        X = npz['X']
+        Y = np.concatenate((npz['Y1'], npz['Y2']), axis=2)
+        #AIA = npz['AIACalibration']
+
+        #image = Image.open(example["file_path_"])
+        #if not image.mode == "RGB":
+        #    image = image.convert("RGB")
 
         # default to score-sde preprocessing
-        img = np.array(image).astype(np.uint8)
-        h, w, = img.shape[0], img.shape[1]
+        #img = np.array(image).astype(np.uint8)
+        #h, w, = img.shape[0], img.shape[1]
         #print(img.shape)
-        cls = img[:, :(w // 2)]
-        img = img[:, (w // 2):]
+        #cls = img[:, :(w // 2)]
+        #img = img[:, (w // 2):]
+        X = self.crop(X)
+        Y = self.crop(Y)
 
-        cropcls = self.cropper(image=cls)["image"]
-        image = self.cropper(image=img)["image"]
+        #cropcls = self.cropper(image=cls)["image"]
+        #image = self.cropper(image=img)["image"]
+
         #print(cls.shape)
         #print(img.shape)
         #crop = min(300, img.shape[0], img.shape[1])
@@ -63,32 +87,30 @@ class AIAHMIBase(Dataset):
         #print(cropcls.sum())
         #print(image.sum())
 
-        cropcls = Image.fromarray(cropcls)
-        image = Image.fromarray(image)
-        if self.size is not None:
-            cropcls = cropcls.resize((self.size, self.size), resample=self.interpolation)
-            image = image.resize((self.size, self.size), resample=self.interpolation)
+        #cropcls = Image.fromarray(cropcls)
+        #image = Image.fromarray(image)
+        #if self.size is not None:
+        #    cropcls = cropcls.resize((self.size, self.size), resample=self.interpolation)
+        #    image = image.resize((self.size, self.size), resample=self.interpolation)
         #image = self.flip(image)
         #print(cropcls)
         #print(image)
 
-        cropcls = np.array(cropcls).astype(np.uint8)
-        image = np.array(image).astype(np.uint8)
-        example["class"] = (cropcls / 127.5 - 1.0).astype(np.float32)
-        example["image"] = (image / 127.5 - 1.0).astype(np.float32)
+        #cropcls = np.array(cropcls).astype(np.uint8)
+        #image = np.array(image).astype(np.uint8)
+        #example["class"] = (cropcls / 127.5 - 1.0).astype(np.float32)
+        #example["image"] = (image / 127.5 - 1.0).astype(np.float32)
+        example["class"] = Y
+        example["image"] = X
         return example
-
-class AIAHMIFakeTrain(AIAHMIBase):
-    def __init__(self, **kwargs):
-        super().__init__(txt_file="data/aiahmi/aiahmi_fake_train.txt", data_root="data/aiahmi/aiahmi_images", **kwargs)
 
 class AIAHMITrain(AIAHMIBase):
     def __init__(self, **kwargs):
-        super().__init__(txt_file="data/aiahmi/aiahmi_train.txt", data_root="data/aiahmi/aiahmi_images", **kwargs)
+        super().__init__(txt_file=None, data_root="data/aiahmi/aiahmi_images/train", **kwargs)
 
 class AIAHMIValidation(AIAHMIBase):
     def __init__(self, flip_p=0., **kwargs):
-        super().__init__(txt_file="data/aiahmi/aiahmi_val.txt", data_root="data/aiahmi/aiahmi_images",
+        super().__init__(txt_file=None, data_root="data/aiahmi/aiahmi_images/val",
                          flip_p=flip_p, **kwargs)
 
 if __name__ == "__main__": 
@@ -96,7 +118,7 @@ if __name__ == "__main__":
     aiahmi_train = AIAHMITrain()
     all_crops = []
 
-    for i in range(100):
+    for i in range(10000):
         data_zero = aiahmi_train[i]
         #all_crops.append(data_zero["crop"])
 
