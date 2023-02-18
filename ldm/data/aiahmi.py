@@ -100,8 +100,8 @@ class AIAHMIBase(Dataset):
         #image = np.array(image).astype(np.uint8)
         #example["class"] = (cropcls / 127.5 - 1.0).astype(np.float32)
         #example["image"] = (image / 127.5 - 1.0).astype(np.float32)
-        example["class"] = X
-        example["image"] = Y
+        example["class"] = (X).astype(np.float32)
+        example["image"] = (Y).astype(np.float32)
         return example
 
 class AIAHMITrain(AIAHMIBase):
