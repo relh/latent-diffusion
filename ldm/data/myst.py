@@ -42,6 +42,11 @@ class MYSTBase(Dataset):
     def __len__(self):
         return self._length
 
+    def crop(self, x, size=640):
+        x = x[(x.shape[0] - size) // 2:-(x.shape[0] - size) // 2,\
+              (x.shape[1] - size) // 2:-(x.shape[1] - size) // 2]
+        return x
+
     def __getitem__(self, i):
         example = dict((k, self.labels[k][i]) for k in self.labels)
         example_10 = dict((k, self.labels[k][i].replace('myst_images', 'myst_flow/10')) for k in self.labels)
@@ -59,8 +64,8 @@ class MYSTBase(Dataset):
         # todo get right flow along with images 
         image_0 = Image.open(example["file_path_"])
         frame_num = int(example["file_path_"].split('_')[-1].split('.')[0])
-        image_10 = Image.open(example["file_path_"].replace(str(frame_num), str(frame_num+10)))
-        image_20 = Image.open(example["file_path_"].replace(str(frame_num), str(frame_num+20)))
+        image_10 = Image.open('_'.join(example["file_path_"].split('_')[:-1]) + '_' + str(frame_num+10) + '.png')
+        image_20 = Image.open('_'.join(example["file_path_"].split('_')[:-1]) + '_' + str(frame_num+20) + '.png')
         #image_30 = Image.open(example["file_path_"].replace(str(frame_num), str(frame_num+30)))
 
         if not image_0.mode == "RGB":
@@ -84,8 +89,8 @@ class MYSTBase(Dataset):
             #flow_30,
         ), axis=2)
 
-        example["class"] = image_0
-        example["image"] = image
+        example["class"] = self.crop(image_0, size=640)
+        example["image"] = self.crop(image, size=640)
         return example
 
 class MYSTFakeTrain(MYSTBase):

@@ -43,13 +43,9 @@ class AIAHMIBase(Dataset):
     def __len__(self):
         return self._length
 
-    def crop(self, x):
-        x = x[(x.shape[0] - 256) // 2:-(x.shape[0] - 256) // 2, (x.shape[1] - 256) // 2:-(x.shape[1] - 256) // 2]
-        #print(x.shape)
-        if x.shape[0] != 256:
-            print(x.shape)
-        if x.shape[1] != 256:
-            print(x.shape)
+    def crop(self, x, size=256):
+        x = x[(x.shape[0] - size) // 2:-(x.shape[0] - size) // 2,\
+              (x.shape[1] - size) // 2:-(x.shape[1] - size) // 2]
         return x
 
     def __getitem__(self, i):
@@ -58,50 +54,12 @@ class AIAHMIBase(Dataset):
         npz = np.load(example['file_path_'], allow_pickle=True, mmap_mode='r')
         X = npz['X']
         Y = np.concatenate((npz['Y1'], npz['Y2']), axis=2)
-        #AIA = npz['AIACalibration']
 
-        #image = Image.open(example["file_path_"])
-        #if not image.mode == "RGB":
-        #    image = image.convert("RGB")
-
-        # default to score-sde preprocessing
-        #img = np.array(image).astype(np.uint8)
-        #h, w, = img.shape[0], img.shape[1]
-        #print(img.shape)
-        #cls = img[:, :(w // 2)]
-        #img = img[:, (w // 2):]
         X = self.crop(X)
         Y = self.crop(Y)
 
-        #cropcls = self.cropper(image=cls)["image"]
-        #image = self.cropper(image=img)["image"]
-
-        #print(cls.shape)
-        #print(img.shape)
-        #crop = min(300, img.shape[0], img.shape[1])
-        #h, w, = img.shape[0], img.shape[1]
-        #cls = cls[(h - crop) // 2:(h + crop) // 2,
-        #      (w - crop) // 2:(w + crop) // 2]
-        #img = img[(h - crop) // 2:(h + crop) // 2,
-        #      (w - crop) // 2:(w + crop) // 2]
-        #print(cropcls.sum())
-        #print(image.sum())
-
-        #cropcls = Image.fromarray(cropcls)
-        #image = Image.fromarray(image)
-        #if self.size is not None:
-        #    cropcls = cropcls.resize((self.size, self.size), resample=self.interpolation)
-        #    image = image.resize((self.size, self.size), resample=self.interpolation)
-        #image = self.flip(image)
-        #print(cropcls)
-        #print(image)
-
-        #cropcls = np.array(cropcls).astype(np.uint8)
-        #image = np.array(image).astype(np.uint8)
-        #example["class"] = (cropcls / 127.5 - 1.0).astype(np.float32)
-        #example["image"] = (image / 127.5 - 1.0).astype(np.float32)
-        example["class"] = (X).astype(np.float32)
-        example["image"] = (Y).astype(np.float32)
+        example["class"] = (X * 2.0 - 1.0).astype(np.float32)
+        example["image"] = (Y * 2.0 - 1.0).astype(np.float32)
         return example
 
 class AIAHMITrain(AIAHMIBase):
@@ -120,6 +78,7 @@ if __name__ == "__main__":
 
     for i in range(10000):
         data_zero = aiahmi_train[i]
+        pdb.set_trace()
         #all_crops.append(data_zero["crop"])
 
     #print(min(all_crops))

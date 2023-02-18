@@ -2,6 +2,7 @@ import argparse, os, sys, datetime, glob, importlib, csv
 import numpy as np
 import time
 import torch
+torch.set_float32_matmul_precision('medium')
 import torchvision
 import pytorch_lightning as pl
 

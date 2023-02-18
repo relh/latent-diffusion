@@ -23,7 +23,7 @@ model:
         image_size: 64
         in_channels: 16
         out_channels: 13
-        model_channels: 64 
+        model_channels: 128 
         attention_resolutions:
         - 32
         - 16
@@ -43,10 +43,10 @@ model:
         ddconfig:
           double_z: false
           z_channels: 13
-          resolution: 256
+          resolution: 640 
           in_channels: 13
           out_ch: 13
-          ch: 32 
+          ch: 128 
           ch_mult:
           - 1
           - 2
@@ -66,19 +66,19 @@ model:
 data:
   target: main.DataModuleFromConfig
   params:
-    batch_size: 1 
+    batch_size: 4 
     wrap: false
     num_workers: 1
     train:
       target: ldm.data.myst.MYSTTrain
       params:
-        size: 256
+        size: 640 
           #crop_size: 512
           #segmentation_to_float32: true
     validation:
       target: ldm.data.myst.MYSTValidation
       params:
-        size: 256
+        size: 640  
           #crop_size: 512
           #segmentation_to_float32: true
 
