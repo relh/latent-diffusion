@@ -23,7 +23,7 @@ model:
         image_size: 64
         in_channels: 21
         out_channels: 18
-        model_channels: 128
+        model_channels: 128 
         attention_resolutions:
         - 32
         - 16
@@ -38,11 +38,11 @@ model:
     first_stage_config:
       target: ldm.models.autoencoder.VQModelInterface
       params:
-        embed_dim: 18
+        embed_dim: 3
         n_embed: 8192
         ddconfig:
           double_z: false
-          z_channels: 18
+          z_channels: 6
           resolution: 256
           in_channels: 18
           out_ch: 18
@@ -66,7 +66,7 @@ model:
 data:
   target: main.DataModuleFromConfig
   params:
-    batch_size: 48 
+    batch_size: 1 
     wrap: false
     num_workers: 2
     train:
