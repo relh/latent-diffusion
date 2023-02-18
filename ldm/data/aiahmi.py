@@ -78,11 +78,13 @@ class AIAHMIBase(Dataset):
         example["image"] = (image / 127.5 - 1.0).astype(np.float32)
         return example
 
+class AIAHMIFakeTrain(AIAHMIBase):
+    def __init__(self, **kwargs):
+        super().__init__(txt_file="data/aiahmi/aiahmi_fake_train.txt", data_root="data/aiahmi/aiahmi_images", **kwargs)
 
 class AIAHMITrain(AIAHMIBase):
     def __init__(self, **kwargs):
         super().__init__(txt_file="data/aiahmi/aiahmi_train.txt", data_root="data/aiahmi/aiahmi_images", **kwargs)
-
 
 class AIAHMIValidation(AIAHMIBase):
     def __init__(self, flip_p=0., **kwargs):
