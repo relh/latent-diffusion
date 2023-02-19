@@ -58,8 +58,8 @@ class AIAHMIBase(Dataset):
         X = self.crop(X)
         Y = self.crop(Y)
 
-        example["class"] = (X * 2.0 - 1.0).astype(np.float32)
-        example["image"] = (Y * 2.0 - 1.0).astype(np.float32)
+        example["class"] = np.nan_to_num(X * 2.0 - 1.0).astype(np.float32)
+        example["image"] = np.nan_to_num(Y * 2.0 - 1.0).astype(np.float32)
         return example
 
 class AIAHMITrain(AIAHMIBase):

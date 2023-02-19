@@ -361,11 +361,11 @@ class ImageLogger(Callback):
                     if self.clamp:
                         images[k] = torch.clamp(images[k], -1., 1.)
 
-            self.log_local(pl_module.logger.save_dir, split, images,
-                           pl_module.global_step, pl_module.current_epoch, batch_idx)
+            #self.log_local(pl_module.logger.save_dir, split, images,
+            #               pl_module.global_step, pl_module.current_epoch, batch_idx)
 
-            logger_log_images = self.logger_log_images.get(logger, lambda *args, **kwargs: None)
-            logger_log_images(pl_module, images, pl_module.global_step, split)
+            #logger_log_images = self.logger_log_images.get(logger, lambda *args, **kwargs: None)
+            #logger_log_images(pl_module, images, pl_module.global_step, split)
 
             if is_train:
                 pl_module.train()
@@ -401,7 +401,7 @@ class CUDACallback(Callback):
         torch.cuda.synchronize(trainer.strategy.root_device.index)
         self.start_time = time.time()
 
-    def on_train_epoch_end(self, trainer, pl_module, outputs):
+    def on_train_epoch_end(self, trainer, pl_module, outputs=None):
         torch.cuda.synchronize(trainer.strategy.root_device.index)
         max_memory = torch.cuda.max_memory_allocated(trainer.strategy.root_device.index) / 2 ** 20
         epoch_time = time.time() - self.start_time

@@ -9,7 +9,7 @@ model:
     loss_type: l1
     first_stage_key: image
     cond_stage_key: class
-    image_size: 64
+    image_size: 160 
     channels: 13 
     concat_mode: true
     conditioning_key: concat
@@ -20,7 +20,7 @@ model:
     unet_config:
       target: ldm.modules.diffusionmodules.openaimodel.UNetModel
       params:
-        image_size: 64
+        image_size: 160
         in_channels: 16
         out_channels: 13
         model_channels: 128 

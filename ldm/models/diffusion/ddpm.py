@@ -278,8 +278,6 @@ class DDPM(pl.LightningModule):
 
     def get_loss(self, pred, target, mean=True):
         if self.loss_type == 'l1':
-            pred[target != target] = 0.0
-            target[target != target] = 0.0
             loss = (target - pred).abs()
             if mean:
                 loss = loss.mean()
