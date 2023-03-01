@@ -1,6 +1,7 @@
 import pdb
 import os
 import os.path as osp
+from collections import defaultdict
 import io
 import tarfile
 import json
@@ -32,6 +33,11 @@ class OmniBase(Dataset):
         self.image_paths = [x for x in self.image_paths]
 
         self._length = len(self.image_paths)
+        self.labels = {
+            "relative_file_path_": [l for l in self.image_paths],
+            "file_path_": [os.path.join(self.tar_root, l)
+                           for l in self.image_paths],
+        }
 
         self.size = size
         self.interpolation = {"linear": PIL.Image.LINEAR,
@@ -84,51 +90,17 @@ class OmniBase(Dataset):
         return data
 
     def get_from_tar(self, house_id, dp_id, data_type):
-        if data_type == 'rgb':
-            tar_name = (
-                osp.join(self.tar_root, f"rgb__taskonomy__{house_id}.tar")
-            )
-            data_name = f"rgb/{dp_id}_rgb.png"
-
-        elif data_type == 'depth_zbuffer':
-            tar_name = (
-                osp.join(self.tar_root, f"depth_zbuffer__taskonomy__{house_id}.tar")
-            )
-            data_name = f"depth_zbuffer/{dp_id}_depth_zbuffer.png"
-
-        elif data_type == 'normal':
-            tar_name = (
-                osp.join(self.tar_root, f"normal__taskonomy__{house_id}.tar")
-            )
-            data_name = f"normal/{dp_id}_normal.png"
-
-        elif data_type == 'principal_curvature':
-            tar_name = (
-                osp.join(self.tar_root, f"principal_curvature__taskonomy__{house_id}.tar")
-            )
-            data_name = f"principal_curvature/{dp_id}_principal_curvature.png"
-
-        elif data_type == 'reshading':
-            tar_name = (
-                osp.join(self.tar_root, f"reshading__taskonomy__{house_id}.tar")
-            )
-            data_name = f"reshading/{dp_id}_reshading.png"
-
-        elif data_type == 'mask_valid':
-            tar_name = (
-                osp.join(self.tar_root, f"mask_valid__taskonomy__{house_id}.tar")
-            )
+        tar_name = (
+            osp.join(self.tar_root, f"{data_type}__taskonomy__{house_id}.tar")
+        )
+        if data_type == 'mask_valid':
             data_name = f"./mask_valid/{house_id}/{dp_id}_depth_zbuffer.png"
-
         elif data_type == 'point_info':
-            tar_name = (
-                osp.join(self.tar_root, f"point_info__taskonomy__{house_id}.tar")
-            )
             data_name = f"point_info/{dp_id}_point_info.json"
         else:
-            raise NotImplementedError
+            data_name = f"{data_type}/{dp_id}_{data_type}.png"
 
-        with tarfile.open(tar_name) as tf:
+        with tarfile.open(tar_name, 'r') as tf:
             try:
                 data = tf.extractfile(data_name)
                 if data_type != "point_info":
@@ -151,6 +123,8 @@ class OmniBase(Dataset):
         return x
 
     def __getitem__(self, i):
+        example = dict((k, self.labels[k][i]) for k in self.labels)
+        print(self.image_paths[i])
         house_id, dp_id = self.image_paths[i].split('/')
 
         rgb = self.get_from_tar(house_id, dp_id, 'rgb') # 3
@@ -166,6 +140,7 @@ class OmniBase(Dataset):
         np_depth = to_np(depth)[:, :, None]
         np_normal = to_np(normal)
         np_curvature = to_np(curvature)
+        np_reshading = to_np(reshading)
         np_mask_valid = to_np(mask_valid)[:, :, None]
 
         image = np.concatenate((
@@ -173,14 +148,12 @@ class OmniBase(Dataset):
             np_depth,
             np_normal,
             np_curvature,
+            np_reshading,
             np_mask_valid
         ), axis=2)
 
-        # TODO load all taskonomy here
-        pdb.set_trace()
-
-        example["class"] = self.crop(np_rgb, size=512)
-        example["image"] = self.crop(image, size=512)
+        example["class"] = np_rgb #self.crop(np_rgb, size=512)
+        example["image"] = image #self.crop(image, size=512)
         return example
 
 class OmniTrain(OmniBase):
@@ -194,8 +167,61 @@ class OmniValidation(OmniBase):
 
 
 if __name__ == "__main__": 
-    dataloader = OmniValidation()
-    dataloader[0]
+    #dataloader = OmniValidation()
+    #dataloader[0]
+    #house_ids = list(dataloader.get_house_ids())
+
+    tar_root = '/nfs/turbo/fouheyTemp/jinlinyi/datasets/omnidata/compressed'
+
+    all_files = []
+    all_files += open('data/omni/omni_train.txt').readlines()
+    #all_files += open('data/omni/omni_val.txt').readlines()
+
+    house_ids = list(set([x.split('/')[0] for x in all_files]))
+
+    existing_samples = []
+    #for f in all_files:
+    for house_id in house_ids:
+        print(house_id)
+        tar_f = {}
+        for data_type in ['rgb', 'depth_zbuffer', 'normal', 'principal_curvature', 'reshading', 'mask_valid']:
+            tar_name = (
+                osp.join(tar_root, f"{data_type}__taskonomy__{house_id}.tar")
+            )
+
+            try:
+                tar_f[data_type] = tarfile.open(tar_name, 'r|')
+            except: continue 
+
+        # make RGB the primary key
+        these_houses = defaultdict(int) 
+        for data_type in ['rgb', 'depth_zbuffer', 'normal', 'principal_curvature', 'reshading', 'mask_valid']:
+            if data_type not in tar_f: continue
+
+            #data = tar_f[data_type].next()
+            #if '.png' not in data.name:
+            #    data = tar_f[data_type].next()
+            for data in tar_f[data_type]:
+                if '.png' not in data.name:
+                    continue
+
+                if data_type == 'depth_zbuffer' or data_type == 'principal_curvature' or data_type == 'mask_valid':
+                    dp_id = '_'.join(data.name.split('/')[-1].split('_')[:-2])
+                else:
+                    dp_id = '_'.join(data.name.split('/')[-1].split('_')[:-1])
+
+                these_houses[dp_id] += 1
+
+        for dp_id, exists in these_houses.items():
+            if exists == 6:
+                existing_samples.append(house_id + '/' + dp_id)
+        print(len(existing_samples))
+
+    with open('data/omni/omni_train_exists.txt', 'a') as f:
+        for eh in existing_samples:
+            f.write(eh + '\n')
+
+    pdb.set_trace()
 
     '''
     house_ids = list(dataloader.get_house_ids())

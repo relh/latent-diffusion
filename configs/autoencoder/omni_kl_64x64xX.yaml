@@ -8,8 +8,10 @@ model:
       target: ldm.modules.losses.LPIPSWithDiscriminator
       params:
         disc_start: 50001
+        disc_in_channels: 14
         kl_weight: 0.000001
         disc_weight: 0.5
+        perceptual_weight: 0.0
 
     ddconfig:
       double_z: True
@@ -28,6 +30,7 @@ data:
   target: main.DataModuleFromConfig
   params:
     batch_size: 2 
+    num_workers: 1
     wrap: True
     train:
       target: ldm.data.omni.OmniTrain
