@@ -314,16 +314,22 @@ class ImageLogger(Callback):
             grid = (grid + 1.0) / 2.0  # -1,1 -> 0,1; c,h,w
 
             tag = f"{split}/{k}"
-            pl_module.logger.experiment.add_image(
-                tag, grid,
-                global_step=pl_module.global_step)
+            #pl_module.logger.experiment.add_image(
+            #    tag, grid,
+            #    global_step=pl_module.global_step)
 
     @rank_zero_only
     def log_local(self, save_dir, split, images,
                   global_step, current_epoch, batch_idx):
         root = os.path.join(save_dir, "images", split)
+        # k is all the different keys involved
         for k in images:
-            grid = torchvision.utils.make_grid(images[k], nrow=4)
+            # batch, channels, height, width
+            if len(images[k].shape) == 4:
+                grid = torchvision.utils.make_grid(images[k][:, :3], nrow=4)
+            else:
+                grid = torchvision.utils.make_grid(images[k][:3], nrow=4)
+
             if self.rescale:
                 grid = (grid + 1.0) / 2.0  # -1,1 -> 0,1; c,h,w
             grid = grid.transpose(0, 1).transpose(1, 2).squeeze(-1)
@@ -361,11 +367,11 @@ class ImageLogger(Callback):
                     if self.clamp:
                         images[k] = torch.clamp(images[k], -1., 1.)
 
-            #self.log_local(pl_module.logger.save_dir, split, images,
-            #               pl_module.global_step, pl_module.current_epoch, batch_idx)
+            self.log_local(pl_module.logger.save_dir, split, images,
+                           pl_module.global_step, pl_module.current_epoch, batch_idx)
 
-            #logger_log_images = self.logger_log_images.get(logger, lambda *args, **kwargs: None)
-            #logger_log_images(pl_module, images, pl_module.global_step, split)
+            logger_log_images = self.logger_log_images.get(logger, lambda *args, **kwargs: None)
+            logger_log_images(pl_module, images, pl_module.global_step, split)
 
             if is_train:
                 pl_module.train()

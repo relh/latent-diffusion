@@ -253,7 +253,7 @@ class VQModel(pl.LightningModule):
         return log
 
     def to_rgb(self, x):
-        assert self.image_key == "segmentation"
+        #assert self.image_key == "segmentation"
         if not hasattr(self, "colorize"):
             self.register_buffer("colorize", torch.randn(3, x.shape[1], 1, 1).to(x))
         x = F.conv2d(x, weight=self.colorize)
@@ -415,7 +415,7 @@ class AutoencoderKL(pl.LightningModule):
         return log
 
     def to_rgb(self, x):
-        assert self.image_key == "segmentation"
+        #assert self.image_key == "segmentation"
         if not hasattr(self, "colorize"):
             self.register_buffer("colorize", torch.randn(3, x.shape[1], 1, 1).to(x))
         x = F.conv2d(x, weight=self.colorize)

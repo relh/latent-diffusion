@@ -1,0 +1,255 @@
+import pdb
+import os
+import os.path as osp
+import io
+import tarfile
+import json
+import pickle
+
+import random
+import albumentations
+import numpy as np
+import PIL
+from PIL import Image
+from torch.utils.data import Dataset
+from torchvision import transforms
+
+class OmniBase(Dataset):
+    def __init__(self,
+                 txt_file,
+                 size=None,
+                 interpolation="bicubic",
+                 flip_p=0.5
+                 ):
+        self.mesh_root = '/nfs/turbo/fouheyTemp/jinlinyi/datasets/gibson'
+        self.tar_root = '/nfs/turbo/fouheyTemp/jinlinyi/datasets/omnidata/compressed'
+        self.extracted_root = '/nfs/turbo/fouheyTemp/jinlinyi/datasets/omnidata/omnidata_taskonomy'
+        self.pose_cached_file = '/nfs/turbo/fouheyTemp/nileshk/mv_drdf_cachedir/taskonomy_gathered_point_info'
+
+        self.data_paths = txt_file
+        with open(self.data_paths, "r") as f:
+            self.image_paths = f.read().splitlines()
+        self.image_paths = [x for x in self.image_paths]
+
+        self._length = len(self.image_paths)
+
+        self.size = size
+        self.interpolation = {"linear": PIL.Image.LINEAR,
+                              "bilinear": PIL.Image.BILINEAR,
+                              "bicubic": PIL.Image.BICUBIC,
+                              "lanczos": PIL.Image.LANCZOS, }[interpolation]
+        self.flip = transforms.RandomHorizontalFlip(p=flip_p)
+        self.cropper = albumentations.CenterCrop(height=self.size, width=self.size)
+
+        # splits = ['gibson_full', 'gibson_fullplus', 'gibson_medium', 'gibson_tiny', 'gibson_v2']
+        splits = ['gibson_v2']
+        house_ids = []
+        id2split = {}
+        for split in splits:
+            tmp_ids = os.listdir(osp.join(self.mesh_root, split))
+            tmp_ids = [x.lower() for x in tmp_ids]
+            house_ids.extend(tmp_ids)
+            for tmp_id in tmp_ids:
+                id2split[tmp_id] = split
+        self.id2split = id2split
+        house_ids = set(house_ids)
+        # house_ids.remove('manifest')
+        self.house_ids = house_ids
+        self.house_id2dp_id = {}
+
+    def get_house_ids(self):
+        return self.house_ids
+
+    def get_house_mesh_by_house_id(self, house_id):
+        mesh_path = osp.join(self.mesh_root, self.id2split[house_id], house_id.capitalize(), 'mesh_z_up.obj')
+        with open(mesh_path, "rb") as f:
+            mesh = trimesh.exchange.obj.load_obj(f, include_color=True)
+        return mesh
+
+    def get_all_dp_ids_by_house_id(self, house_id):
+        if house_id not in self.house_id2dp_id.keys():
+            suffix = "_rgb.png"
+            dp_ids = [
+                f.split(suffix)[0]
+                for f in os.listdir(
+                    osp.join(self.extracted_root, f"rgb/taskonomy/{house_id}")
+                )
+            ]
+            self.house_id2dp_id[house_id] = dp_ids
+        return self.house_id2dp_id[house_id]
+
+    def get_all_cameras_by_house_id(self, house_id):
+        with open(osp.join(self.pose_cached_file, f'{house_id}.json')) as f:
+            data = json.load(f)
+        return data
+
+    def get_from_tar(self, house_id, dp_id, data_type):
+        if data_type == 'rgb':
+            tar_name = (
+                osp.join(self.tar_root, f"rgb__taskonomy__{house_id}.tar")
+            )
+            data_name = f"rgb/{dp_id}_rgb.png"
+
+        elif data_type == 'depth_zbuffer':
+            tar_name = (
+                osp.join(self.tar_root, f"depth_zbuffer__taskonomy__{house_id}.tar")
+            )
+            data_name = f"depth_zbuffer/{dp_id}_depth_zbuffer.png"
+
+        elif data_type == 'normal':
+            tar_name = (
+                osp.join(self.tar_root, f"normal__taskonomy__{house_id}.tar")
+            )
+            data_name = f"normal/{dp_id}_normal.png"
+
+        elif data_type == 'principal_curvature':
+            tar_name = (
+                osp.join(self.tar_root, f"principal_curvature__taskonomy__{house_id}.tar")
+            )
+            data_name = f"principal_curvature/{dp_id}_principal_curvature.png"
+
+        elif data_type == 'reshading':
+            tar_name = (
+                osp.join(self.tar_root, f"reshading__taskonomy__{house_id}.tar")
+            )
+            data_name = f"reshading/{dp_id}_reshading.png"
+
+        elif data_type == 'mask_valid':
+            tar_name = (
+                osp.join(self.tar_root, f"mask_valid__taskonomy__{house_id}.tar")
+            )
+            data_name = f"./mask_valid/{house_id}/{dp_id}_depth_zbuffer.png"
+
+        elif data_type == 'point_info':
+            tar_name = (
+                osp.join(self.tar_root, f"point_info__taskonomy__{house_id}.tar")
+            )
+            data_name = f"point_info/{dp_id}_point_info.json"
+        else:
+            raise NotImplementedError
+
+        with tarfile.open(tar_name) as tf:
+            try:
+                data = tf.extractfile(data_name)
+                if data_type != "point_info":
+                    data = data.read()
+                    data = Image.open(io.BytesIO(data))
+                    #data = get_transform(data_type)(data)
+                else:
+                    data = json.loads(data.read())
+            except:
+                breakpoint()
+                tf.getmembers()
+        return data
+
+    def __len__(self):
+        return self._length
+
+    def crop(self, x, size=640):
+        x = x[(x.shape[0] - size) // 2:-(x.shape[0] - size) // 2,\
+              (x.shape[1] - size) // 2:-(x.shape[1] - size) // 2]
+        return x
+
+    def __getitem__(self, i):
+        house_id, dp_id = self.image_paths[i].split('/')
+
+        rgb = self.get_from_tar(house_id, dp_id, 'rgb') # 3
+        depth = self.get_from_tar(house_id, dp_id, 'depth_zbuffer') # 1
+        normal = self.get_from_tar(house_id, dp_id, 'normal') # 3
+        curvature = self.get_from_tar(house_id, dp_id, 'principal_curvature') # 3
+        reshading = self.get_from_tar(house_id, dp_id, 'reshading') # 3
+        mask_valid = self.get_from_tar(house_id, dp_id, 'mask_valid') # 1
+        #point_info = self.get_from_tar(house_id, dp_id, 'point_info')
+
+        to_np = lambda x : (np.array(x).astype(np.uint8) / 127.5 - 1.0).astype(np.float32)
+        np_rgb = to_np(rgb)
+        np_depth = to_np(depth)[:, :, None]
+        np_normal = to_np(normal)
+        np_curvature = to_np(curvature)
+        np_mask_valid = to_np(mask_valid)[:, :, None]
+
+        image = np.concatenate((
+            np_rgb,
+            np_depth,
+            np_normal,
+            np_curvature,
+            np_mask_valid
+        ), axis=2)
+
+        # TODO load all taskonomy here
+        pdb.set_trace()
+
+        example["class"] = self.crop(np_rgb, size=512)
+        example["image"] = self.crop(image, size=512)
+        return example
+
+class OmniTrain(OmniBase):
+    def __init__(self, **kwargs):
+        super().__init__(txt_file="data/omni/omni_train.txt", **kwargs)
+
+class OmniValidation(OmniBase):
+    def __init__(self, flip_p=0., **kwargs):
+        super().__init__(txt_file="data/omni/omni_val.txt",
+                         flip_p=flip_p, **kwargs)
+
+
+if __name__ == "__main__": 
+    dataloader = OmniValidation()
+    dataloader[0]
+
+    '''
+    house_ids = list(dataloader.get_house_ids())
+    house_id = 'brevort'
+    #mesh = dataloader.get_house_mesh_by_house_id(house_id)
+    #cameras = dataloader.get_all_cameras_by_house_id(house_id)
+    #dp_ids = dataloader.get_all_dp_ids_by_house_id(house_id)
+    print(len(house_ids))
+
+    train_house_ids = house_ids[:500]
+    val_house_ids = house_ids[500:]
+
+    num_images = 0 
+    for zzz, house_id in enumerate(train_house_ids):
+        try: 
+            print(house_id)
+            dp_ids = dataloader.get_all_dp_ids_by_house_id(house_id)
+            print(len(dp_ids))
+            num_images += len(dp_ids)
+
+            with open('data/omni/omni_train.txt', 'a') as f:
+                for dp_id in dp_ids:
+                    f.write(str(house_id) + '/' + str(dp_id) + '\n')
+        except:
+            pass
+
+    for zzz, house_id in enumerate(val_house_ids):
+        try: 
+            print(house_id)
+            dp_ids = dataloader.get_all_dp_ids_by_house_id(house_id)
+            print(len(dp_ids))
+            num_images += len(dp_ids)
+
+            with open('data/omni/omni_val.txt', 'a') as f:
+                for dp_id in dp_ids:
+                    f.write(str(house_id) + '/' + str(dp_id) + '\n')
+        except:
+            pass
+
+    print(num_images)
+    pdb.set_trace()
+    '''
+
+    '''
+    with open('data/omni/omni_train.txt', 'w') as f:
+        for house_id in house_ids[:500]:
+            f.write(str(house_id) + '\n')
+
+    with open('data/omni/omni_val.txt', 'w') as f:
+        for house_id in house_ids[500:]:
+            f.write(str(house_id) + '\n')
+
+    for data_type in ['rgb', 'depth_zbuffer', 'mask_valid', 'point_info']:
+        data = dataloader.get_from_tar(house_id, dp_ids[0], data_type)
+    breakpoint()
+    p3d = sample_pt_from_mesh(mesh, num_pt=1)
+    '''

@@ -93,10 +93,6 @@ class MYSTBase(Dataset):
         example["image"] = self.crop(image, size=640)
         return example
 
-class MYSTFakeTrain(MYSTBase):
-    def __init__(self, **kwargs):
-        super().__init__(txt_file="data/myst/myst_fake_train.txt", data_root="data/myst/myst_images", **kwargs)
-
 class MYSTTrain(MYSTBase):
     def __init__(self, **kwargs):
         super().__init__(txt_file="data/myst/myst_train.txt", data_root="data/myst/myst_images", **kwargs)
