@@ -47,21 +47,16 @@ class OmniBase(Dataset):
         self.flip = transforms.RandomHorizontalFlip(p=flip_p)
         self.cropper = albumentations.CenterCrop(height=self.size, width=self.size)
 
+        self.house_ids = list(set([x.split('/')[0] for x in self.image_paths]))
+        self.all_tars = defaultdict(lambda: defaultdict(object))
+        for house_id in self.house_ids:
+            print(house_id)
+            for data_type in ['rgb', 'depth_zbuffer', 'normal', 'principal_curvature', 'reshading', 'mask_valid']:
+                tar_name = (
+                    osp.join(self.tar_root, f"{data_type}__taskonomy__{house_id}.tar")
+                )
+                self.all_tars[house_id][data_type] = tarfile.open(tar_name, 'r:')
         # splits = ['gibson_full', 'gibson_fullplus', 'gibson_medium', 'gibson_tiny', 'gibson_v2']
-        splits = ['gibson_v2']
-        house_ids = []
-        id2split = {}
-        for split in splits:
-            tmp_ids = os.listdir(osp.join(self.mesh_root, split))
-            tmp_ids = [x.lower() for x in tmp_ids]
-            house_ids.extend(tmp_ids)
-            for tmp_id in tmp_ids:
-                id2split[tmp_id] = split
-        self.id2split = id2split
-        house_ids = set(house_ids)
-        # house_ids.remove('manifest')
-        self.house_ids = house_ids
-        self.house_id2dp_id = {}
 
     def get_house_ids(self):
         return self.house_ids
@@ -90,9 +85,6 @@ class OmniBase(Dataset):
         return data
 
     def get_from_tar(self, house_id, dp_id, data_type):
-        tar_name = (
-            osp.join(self.tar_root, f"{data_type}__taskonomy__{house_id}.tar")
-        )
         if data_type == 'mask_valid':
             data_name = f"./mask_valid/{house_id}/{dp_id}_depth_zbuffer.png"
         elif data_type == 'point_info':
@@ -100,18 +92,16 @@ class OmniBase(Dataset):
         else:
             data_name = f"{data_type}/{dp_id}_{data_type}.png"
 
-        with tarfile.open(tar_name, 'r') as tf:
-            try:
-                data = tf.extractfile(data_name)
-                if data_type != "point_info":
-                    data = data.read()
-                    data = Image.open(io.BytesIO(data))
-                    #data = get_transform(data_type)(data)
-                else:
-                    data = json.loads(data.read())
-            except:
-                breakpoint()
-                tf.getmembers()
+        try:
+            data = self.all_tars[house_id][data_type].extractfile(data_name)
+            if data_type != "point_info":
+                data = data.read()
+                data = Image.open(io.BytesIO(data))
+                #data = get_transform(data_type)(data)
+            else:
+                data = json.loads(data.read())
+        except:
+            breakpoint()
         return data
 
     def __len__(self):
@@ -162,21 +152,12 @@ class OmniTrain(OmniBase):
 
 class OmniValidation(OmniBase):
     def __init__(self, flip_p=0., **kwargs):
-        super().__init__(txt_file="data/omni/omni_val.txt",
+        super().__init__(txt_file="data/omni/omni_valid.txt",
                          flip_p=flip_p, **kwargs)
 
-
-if __name__ == "__main__": 
-    #dataloader = OmniValidation()
-    #dataloader[0]
-    #house_ids = list(dataloader.get_house_ids())
-
+def make_valid(split='train'):
     tar_root = '/nfs/turbo/fouheyTemp/jinlinyi/datasets/omnidata/compressed'
-
-    all_files = []
-    all_files += open('data/omni/omni_train.txt').readlines()
-    #all_files += open('data/omni/omni_val.txt').readlines()
-
+    all_files = open(f'data/omni/omni_{split}.txt').readlines()
     house_ids = list(set([x.split('/')[0] for x in all_files]))
 
     existing_samples = []
@@ -217,13 +198,12 @@ if __name__ == "__main__":
                 existing_samples.append(house_id + '/' + dp_id)
         print(len(existing_samples))
 
-    with open('data/omni/omni_train_exists.txt', 'a') as f:
+    with open(f'data/omni/omni_{split}_exists.txt', 'a') as f:
         for eh in existing_samples:
             f.write(eh + '\n')
 
-    pdb.set_trace()
 
-    '''
+def make_all(split='train'):
     house_ids = list(dataloader.get_house_ids())
     house_id = 'brevort'
     #mesh = dataloader.get_house_mesh_by_house_id(house_id)
@@ -255,27 +235,29 @@ if __name__ == "__main__":
             print(len(dp_ids))
             num_images += len(dp_ids)
 
-            with open('data/omni/omni_val.txt', 'a') as f:
+            with open('data/omni/omni_valid.txt', 'a') as f:
                 for dp_id in dp_ids:
                     f.write(str(house_id) + '/' + str(dp_id) + '\n')
         except:
             pass
 
     print(num_images)
+
+
+if __name__ == "__main__": 
+    dataloader = OmniValidation()
+    dataloader[0]
+    split = 'valid'
+    all_files = open(f'data/omni/omni_{split}_exists.txt').readlines()
+    house_ids = list(set([x.split('/')[0] for x in all_files]))
+    tar_root = '/nfs/turbo/fouheyTemp/jinlinyi/datasets/omnidata/compressed'
+
+    these_houses = defaultdict(lambda: defaultdict(object))
+    for house_id in house_ids:
+        print(house_id)
+        for data_type in ['rgb', 'depth_zbuffer', 'normal', 'principal_curvature', 'reshading', 'mask_valid']:
+            tar_name = (
+                osp.join(tar_root, f"{data_type}__taskonomy__{house_id}.tar")
+            )
+            these_houses[house_id][data_type] = tarfile.open(tar_name, 'r')
     pdb.set_trace()
-    '''
-
-    '''
-    with open('data/omni/omni_train.txt', 'w') as f:
-        for house_id in house_ids[:500]:
-            f.write(str(house_id) + '\n')
-
-    with open('data/omni/omni_val.txt', 'w') as f:
-        for house_id in house_ids[500:]:
-            f.write(str(house_id) + '\n')
-
-    for data_type in ['rgb', 'depth_zbuffer', 'mask_valid', 'point_info']:
-        data = dataloader.get_from_tar(house_id, dp_ids[0], data_type)
-    breakpoint()
-    p3d = sample_pt_from_mesh(mesh, num_pt=1)
-    '''
