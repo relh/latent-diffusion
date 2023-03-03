@@ -114,7 +114,7 @@ class OmniBase(Dataset):
 
     def __getitem__(self, i):
         example = dict((k, self.labels[k][i]) for k in self.labels)
-        print(self.image_paths[i])
+        #print(self.image_paths[i])
         house_id, dp_id = self.image_paths[i].split('/')
 
         rgb = self.get_from_tar(house_id, dp_id, 'rgb') # 3
@@ -148,11 +148,11 @@ class OmniBase(Dataset):
 
 class OmniTrain(OmniBase):
     def __init__(self, **kwargs):
-        super().__init__(txt_file="data/omni/omni_train.txt", **kwargs)
+        super().__init__(txt_file="data/omni/omni_train_exists.txt", **kwargs)
 
 class OmniValidation(OmniBase):
     def __init__(self, flip_p=0., **kwargs):
-        super().__init__(txt_file="data/omni/omni_valid.txt",
+        super().__init__(txt_file="data/omni/omni_valid_exists.txt",
                          flip_p=flip_p, **kwargs)
 
 def make_valid(split='train'):
