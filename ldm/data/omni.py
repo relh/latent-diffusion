@@ -24,6 +24,7 @@ class OmniBase(Dataset):
                  ):
         self.mesh_root = '/nfs/turbo/fouheyTemp/jinlinyi/datasets/gibson'
         self.tar_root = '/nfs/turbo/fouheyTemp/jinlinyi/datasets/omnidata/compressed'
+        self.index_root = '/nfs/turbo/fouheyTemp/relh/latent-diffusion/data/omni/omniindex/'
         self.extracted_root = '/nfs/turbo/fouheyTemp/jinlinyi/datasets/omnidata/omnidata_taskonomy'
         self.pose_cached_file = '/nfs/turbo/fouheyTemp/nileshk/mv_drdf_cachedir/taskonomy_gathered_point_info'
 
@@ -49,13 +50,18 @@ class OmniBase(Dataset):
 
         self.house_ids = list(set([x.split('/')[0] for x in self.image_paths]))
         self.all_tars = defaultdict(lambda: defaultdict(object))
+        self.all_indices = defaultdict(lambda: defaultdict(object))
         for house_id in self.house_ids:
-            print(house_id)
             for data_type in ['rgb', 'depth_zbuffer', 'normal', 'principal_curvature', 'reshading', 'mask_valid']:
                 tar_name = (
                     osp.join(self.tar_root, f"{data_type}__taskonomy__{house_id}.tar")
                 )
-                self.all_tars[house_id][data_type] = tarfile.open(tar_name, 'r:')
+                index_name = (
+                    osp.join(self.index_root, f"{data_type}__taskonomy__{house_id}.tar")
+                )
+
+                self.all_tars[house_id][data_type] = open(tar_name, 'rb')
+                self.all_indices[house_id][data_type] = open(index_name, 'r')#.readlines()
         # splits = ['gibson_full', 'gibson_fullplus', 'gibson_medium', 'gibson_tiny', 'gibson_v2']
 
     def get_house_ids(self):
@@ -84,6 +90,18 @@ class OmniBase(Dataset):
             data = json.load(f)
         return data
 
+    def lookup(self, path, house_id, data_type):
+        if hasattr(self.all_indices[house_id][data_type], 'readlines'):
+            self.all_indices[house_id][data_type] = self.all_indices[house_id][data_type].readlines()
+
+        for line in self.all_indices[house_id][data_type]:
+            m = line[:-1].rsplit(" ", 2)
+            if path == m[0]:
+                self.all_tars[house_id][data_type].seek(int(m[1]))
+                buffer = self.all_tars[house_id][data_type].read(int(m[2]))
+                return buffer
+                #os.write (sys.stdout.fileno (), buffer)
+
     def get_from_tar(self, house_id, dp_id, data_type):
         if data_type == 'mask_valid':
             data_name = f"./mask_valid/{house_id}/{dp_id}_depth_zbuffer.png"
@@ -93,13 +111,15 @@ class OmniBase(Dataset):
             data_name = f"{data_type}/{dp_id}_{data_type}.png"
 
         try:
-            data = self.all_tars[house_id][data_type].extractfile(data_name)
+        #if True:
+            #data = self.all_tars[house_id][data_type].extractfile(data_name)
+            data = self.lookup(data_name, house_id, data_type)
             if data_type != "point_info":
-                data = data.read()
+                #data = data.read()
                 data = Image.open(io.BytesIO(data))
                 #data = get_transform(data_type)(data)
             else:
-                data = json.loads(data.read())
+                data = json.loads(data)#.read())
         except:
             breakpoint()
         return data
@@ -246,6 +266,8 @@ def make_all(split='train'):
 
 if __name__ == "__main__": 
     dataloader = OmniValidation()
+    pdb.set_trace()
+
     dataloader[0]
     split = 'valid'
     all_files = open(f'data/omni/omni_{split}_exists.txt').readlines()
@@ -260,4 +282,4 @@ if __name__ == "__main__":
                 osp.join(tar_root, f"{data_type}__taskonomy__{house_id}.tar")
             )
             these_houses[house_id][data_type] = tarfile.open(tar_name, 'r')
-    pdb.set_trace()
+        break
