@@ -36,26 +36,33 @@ model:
         num_heads: 8
 
     first_stage_config:
-      target: ldm.models.autoencoder.VQModelInterface
+      target: ldm.models.autoencoder.AutoencoderKL
       params:
         embed_dim: 13
         n_embed: 8192
+
+        lossconfig:
+          target: ldm.modules.losses.LPIPSWithDiscriminator
+          params:
+            disc_start: 50001
+            disc_in_channels: 13
+            kl_weight: 0.000001
+            disc_weight: 0.5
+            perceptual_weight: 0.0
+              #lossconfig:
+              #target: torch.nn.Identity
+
         ddconfig:
-          double_z: false
+          double_z: True
           z_channels: 13
           resolution: 640 
           in_channels: 13
           out_ch: 13
-          ch: 128 
-          ch_mult:
-          - 1
-          - 2
-          - 4
+          ch: 128
+          ch_mult: [ 1,2,4 ]  # num_down = len(ch_mult)-1
           num_res_blocks: 2
-          attn_resolutions: []
+          attn_resolutions: [ ]
           dropout: 0.0
-        lossconfig:
-          target: torch.nn.Identity
 
     cond_stage_config:
       target: ldm.modules.encoders.modules.SpatialRescaler
@@ -66,8 +73,8 @@ model:
 data:
   target: main.DataModuleFromConfig
   params:
-    batch_size: 4 
-    wrap: false
+    batch_size: 2 
+    wrap: true 
     num_workers: 1
     train:
       target: ldm.data.myst.MYSTTrain

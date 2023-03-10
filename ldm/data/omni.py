@@ -4,6 +4,12 @@ import os.path as osp
 from collections import defaultdict
 import io
 import tarfile
+import tarfile
+import sys
+import os
+import time
+import codecs
+
 import json
 import pickle
 
@@ -14,6 +20,7 @@ import PIL
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
+starttime = time.time()
 
 class OmniBase(Dataset):
     def __init__(self,
@@ -31,7 +38,7 @@ class OmniBase(Dataset):
         self.data_paths = txt_file
         with open(self.data_paths, "r") as f:
             self.image_paths = f.read().splitlines()
-        self.image_paths = [x for x in self.image_paths]
+        self.image_paths = [x for x in self.image_paths][::2]
 
         self._length = len(self.image_paths)
         self.labels = {
@@ -264,7 +271,50 @@ def make_all(split='train'):
     print(num_images)
 
 
+def human(size):
+    a = 'B','kB','mB','gB','tB','pB'
+    curr = 'B'
+    while( size > 1024 ):
+        size/=1024
+        curr = a[a.index(curr)+1]
+    return str(int(size*10)/10)+curr
+    
+def indextar(dbtarfile,indexfile):
+    filesize = os.path.getsize(dbtarfile)
+    lastpercent = 0
+    
+
+    with tarfile.open(dbtarfile, 'r|') as db:
+        if os.path.isfile(indexfile):
+            print('file exists. exiting')
+
+        with open(indexfile, 'w') as outfile:
+            counter = 0
+            print('One dot stands for 1000 indexed files.')
+            #tarinfo = db.next()
+            for tarinfo in db:
+                currentseek = tarinfo.offset_data
+                rec = "%s %d %d\n" % (tarinfo.name, tarinfo.offset_data, tarinfo.size)
+                outfile.write(rec)
+                counter += 1
+                if counter % 1000 == 0:
+                    # free ram...
+                    db.members = []
+                if(currentseek/filesize>lastpercent):
+                    print('')
+                    percent = int(currentseek/filesize*1000.0)/10
+                    print(str(percent)+'%')
+                    lastpercent+=0.01
+                    print(human(currentseek)+'/'+human(filesize))
+                    if(percent!=0):
+                        estimate = ((time.time()-starttime)/percent)*100
+                        eta = (starttime+estimate)-time.time()
+                        print('ETA: '+str(int(eta))+'s (estimate '+str(int(estimate))+'s)')
+    print('done.')
+
+
 if __name__ == "__main__": 
+    '''
     dataloader = OmniValidation()
     pdb.set_trace()
 
@@ -283,3 +333,20 @@ if __name__ == "__main__":
             )
             these_houses[house_id][data_type] = tarfile.open(tar_name, 'r')
         break
+    '''
+
+    root = '/nfs/turbo/fouheyTemp/relh/latent-diffusion/data/omni/omnidata/'
+    for path in os.listdir(root):
+        print(path)
+        if not os.path.exists(root.replace('omnidata', 'omniindex') + path):
+            MODE = 'index'
+            dbtarfile = root + path
+            indexfile = root.replace('omnidata', 'omniindex') + path
+            try:
+                indextar(dbtarfile,indexfile)
+            except:
+                print('broken!')
+                continue
+
+    #main()    
+
