@@ -38,15 +38,8 @@ class OmniBase(Dataset):
         self.data_paths = txt_file
         with open(self.data_paths, "r") as f:
             self.image_paths = f.read().splitlines()
-        self.image_paths = [x for x in self.image_paths]
-
-        self.this_image_paths = self.image_paths[:10]#[::2]
-        self._length = len(self.this_image_paths)
-        self.labels = {
-            "relative_file_path_": [l for l in self.this_image_paths],
-            "file_path_": [os.path.join(self.tar_root, l)
-                           for l in self.this_image_paths],
-        }
+        self.image_paths = [x for x in self.image_paths if 'cottonport/point_2772_view_0_domain' not in x]
+        self.shuffle()
 
         self.size = size
         self.interpolation = {"linear": PIL.Image.LINEAR,
@@ -118,8 +111,11 @@ class OmniBase(Dataset):
         else:
             data_name = f"{data_type}/{dp_id}_{data_type}.png"
 
-        try:
-        #if True:
+        #try:
+        if True:
+            #print(data_type)
+            #print(house_id)
+            #print(dp_id)
             #data = self.all_tars[house_id][data_type].extractfile(data_name)
             data = self.lookup(data_name, house_id, data_type)
             if data_type != "point_info":
@@ -128,8 +124,8 @@ class OmniBase(Dataset):
                 #data = get_transform(data_type)(data)
             else:
                 data = json.loads(data)#.read())
-        except:
-            breakpoint()
+        #except:
+        #    breakpoint()
         return data
 
     def __len__(self):
@@ -142,7 +138,7 @@ class OmniBase(Dataset):
 
     def shuffle(self):
         random.shuffle(self.image_paths)
-        self.this_image_paths = self.image_paths[:10000]
+        self.this_image_paths = self.image_paths[:1000]
         self._length = len(self.this_image_paths)
         self.labels = {
             "relative_file_path_": [l for l in self.this_image_paths],
@@ -151,20 +147,23 @@ class OmniBase(Dataset):
         }
 
     def __getitem__(self, i):
-        #if i == 0:
-        #    self.shuffle()
+        if i == 0:
+            self.shuffle()
 
         example = dict((k, self.labels[k][i]) for k in self.labels)
         #print(self.image_paths[i])
         house_id, dp_id = self.this_image_paths[i].split('/')
 
-        rgb = self.get_from_tar(house_id, dp_id, 'rgb') # 3
-        depth = self.get_from_tar(house_id, dp_id, 'depth_zbuffer') # 1
-        normal = self.get_from_tar(house_id, dp_id, 'normal') # 3
-        curvature = self.get_from_tar(house_id, dp_id, 'principal_curvature') # 3
-        reshading = self.get_from_tar(house_id, dp_id, 'reshading') # 3
-        mask_valid = self.get_from_tar(house_id, dp_id, 'mask_valid') # 1
-        #point_info = self.get_from_tar(house_id, dp_id, 'point_info')
+        try:
+            rgb = self.get_from_tar(house_id, dp_id, 'rgb') # 3
+            depth = self.get_from_tar(house_id, dp_id, 'depth_zbuffer') # 1
+            normal = self.get_from_tar(house_id, dp_id, 'normal') # 3
+            curvature = self.get_from_tar(house_id, dp_id, 'principal_curvature') # 3
+            reshading = self.get_from_tar(house_id, dp_id, 'reshading') # 3
+            mask_valid = self.get_from_tar(house_id, dp_id, 'mask_valid') # 1
+            #point_info = self.get_from_tar(house_id, dp_id, 'point_info')
+        except:
+            return self[random.randint(0, len(self))]
 
         to_np = lambda x : (np.array(x).astype(np.uint8) / 127.5 - 1.0).astype(np.float32)
         np_rgb = to_np(rgb)
@@ -197,14 +196,13 @@ class OmniValidation(OmniBase):
                          flip_p=flip_p, **kwargs)
 
 def make_valid(split='train'):
-    tar_root = '/nfs/turbo/fouheyTemp/jinlinyi/datasets/omnidata/compressed'
+    tar_root = 'data/omni/omniindex/'
     all_files = open(f'data/omni/omni_{split}.txt').readlines()
     house_ids = list(set([x.split('/')[0] for x in all_files]))
 
     existing_samples = []
     #for f in all_files:
     for house_id in house_ids:
-        print(house_id)
         tar_f = {}
         for data_type in ['rgb', 'depth_zbuffer', 'normal', 'principal_curvature', 'reshading', 'mask_valid']:
             tar_name = (
@@ -328,9 +326,21 @@ def indextar(dbtarfile,indexfile):
 
 
 if __name__ == "__main__": 
-    '''
+    #make_valid(split='valid')
+    #make_valid(split='train')
+
+    #one_dataloader = OmniTrain()
+    #one_dataloader[0]
+
     dataloader = OmniValidation()
+
+    for i in range(100):
+        dataloader.shuffle()
+        for x in dataloader:
+            print(i)
     pdb.set_trace()
+
+    '''
 
     dataloader[0]
     split = 'valid'
@@ -349,6 +359,7 @@ if __name__ == "__main__":
         break
     '''
 
+    '''
     root = '/nfs/turbo/fouheyTemp/relh/latent-diffusion/data/omni/omnidata/'
     for path in os.listdir(root):
         print(path)
@@ -361,6 +372,7 @@ if __name__ == "__main__":
             except:
                 print('broken!')
                 continue
+    '''
 
     #main()    
 

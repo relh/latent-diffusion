@@ -36,12 +36,13 @@ model:
         num_heads: 8
 
     first_stage_config:
-      target: ldm.models.autoencoder.VQModelInterface
+      target: ldm.models.autoencoder.AutoencoderKL
       params:
         embed_dim: 6
-        n_embed: 8192
+        ckpt_path: logs/2023-02-27T13-27-01_aiahmi_kl_64x64xX/checkpoints/epoch=000104.ckpt
+
         ddconfig:
-          double_z: false
+          double_z: True 
           z_channels: 6
           resolution: 256
           in_channels: 6
