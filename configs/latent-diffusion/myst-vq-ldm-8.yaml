@@ -39,7 +39,7 @@ model:
       target: ldm.models.autoencoder.AutoencoderKL
       params:
         embed_dim: 13
-        n_embed: 8192
+        ckpt_path: logs/2023-02-23T09-31-09_myst_kl_64x64xX/checkpoints/epoch=000017.ckpt
 
         lossconfig:
           target: ldm.modules.losses.LPIPSWithDiscriminator

@@ -38,13 +38,14 @@ class OmniBase(Dataset):
         self.data_paths = txt_file
         with open(self.data_paths, "r") as f:
             self.image_paths = f.read().splitlines()
-        self.image_paths = [x for x in self.image_paths][::2]
+        self.image_paths = [x for x in self.image_paths]
 
-        self._length = len(self.image_paths)
+        self.this_image_paths = self.image_paths[:10]#[::2]
+        self._length = len(self.this_image_paths)
         self.labels = {
-            "relative_file_path_": [l for l in self.image_paths],
+            "relative_file_path_": [l for l in self.this_image_paths],
             "file_path_": [os.path.join(self.tar_root, l)
-                           for l in self.image_paths],
+                           for l in self.this_image_paths],
         }
 
         self.size = size
@@ -139,10 +140,23 @@ class OmniBase(Dataset):
               (x.shape[1] - size) // 2:-(x.shape[1] - size) // 2]
         return x
 
+    def shuffle(self):
+        random.shuffle(self.image_paths)
+        self.this_image_paths = self.image_paths[:10000]
+        self._length = len(self.this_image_paths)
+        self.labels = {
+            "relative_file_path_": [l for l in self.this_image_paths],
+            "file_path_": [os.path.join(self.tar_root, l)
+                           for l in self.this_image_paths],
+        }
+
     def __getitem__(self, i):
+        #if i == 0:
+        #    self.shuffle()
+
         example = dict((k, self.labels[k][i]) for k in self.labels)
         #print(self.image_paths[i])
-        house_id, dp_id = self.image_paths[i].split('/')
+        house_id, dp_id = self.this_image_paths[i].split('/')
 
         rgb = self.get_from_tar(house_id, dp_id, 'rgb') # 3
         depth = self.get_from_tar(house_id, dp_id, 'depth_zbuffer') # 1
