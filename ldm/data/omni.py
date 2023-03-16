@@ -38,7 +38,7 @@ class OmniBase(Dataset):
         self.data_paths = txt_file
         with open(self.data_paths, "r") as f:
             self.image_paths = f.read().splitlines()
-        self.image_paths = [x for x in self.image_paths if 'cottonport/point_2772_view_0_domain' not in x]
+        self.image_paths = [x for x in self.image_paths]
         self.shuffle()
 
         self.size = size
@@ -62,7 +62,7 @@ class OmniBase(Dataset):
                 )
 
                 self.all_tars[house_id][data_type] = open(tar_name, 'rb')
-                self.all_indices[house_id][data_type] = open(index_name, 'r')#.readlines()
+                self.all_indices[house_id][data_type] = open(index_name, 'r').readlines()
         # splits = ['gibson_full', 'gibson_fullplus', 'gibson_medium', 'gibson_tiny', 'gibson_v2']
 
     def get_house_ids(self):
@@ -92,8 +92,8 @@ class OmniBase(Dataset):
         return data
 
     def lookup(self, path, house_id, data_type):
-        if hasattr(self.all_indices[house_id][data_type], 'readlines'):
-            self.all_indices[house_id][data_type] = self.all_indices[house_id][data_type].readlines()
+        #if hasattr(self.all_indices[house_id][data_type], 'readlines'):
+        #    self.all_indices[house_id][data_type] = self.all_indices[house_id][data_type].readlines()
 
         for line in self.all_indices[house_id][data_type]:
             m = line[:-1].rsplit(" ", 2)
@@ -112,18 +112,17 @@ class OmniBase(Dataset):
             data_name = f"{data_type}/{dp_id}_{data_type}.png"
 
         #try:
-        if True:
-            #print(data_type)
-            #print(house_id)
-            #print(dp_id)
-            #data = self.all_tars[house_id][data_type].extractfile(data_name)
-            data = self.lookup(data_name, house_id, data_type)
-            if data_type != "point_info":
-                #data = data.read()
-                data = Image.open(io.BytesIO(data))
-                #data = get_transform(data_type)(data)
-            else:
-                data = json.loads(data)#.read())
+        #print(data_type)
+        #print(house_id)
+        #print(dp_id)
+        #data = self.all_tars[house_id][data_type].extractfile(data_name)
+        data = self.lookup(data_name, house_id, data_type)
+        if data_type != "point_info":
+            #data = data.read()
+            data = Image.open(io.BytesIO(data))
+            #data = get_transform(data_type)(data)
+        else:
+            data = json.loads(data)#.read())
         #except:
         #    breakpoint()
         return data
@@ -137,8 +136,7 @@ class OmniBase(Dataset):
         return x
 
     def shuffle(self):
-        random.shuffle(self.image_paths)
-        self.this_image_paths = self.image_paths[:1000]
+        self.this_image_paths = random.sample(self.image_paths, 5000)
         self._length = len(self.this_image_paths)
         self.labels = {
             "relative_file_path_": [l for l in self.this_image_paths],
@@ -151,7 +149,6 @@ class OmniBase(Dataset):
             self.shuffle()
 
         example = dict((k, self.labels[k][i]) for k in self.labels)
-        #print(self.image_paths[i])
         house_id, dp_id = self.this_image_paths[i].split('/')
 
         try:
@@ -163,7 +160,7 @@ class OmniBase(Dataset):
             mask_valid = self.get_from_tar(house_id, dp_id, 'mask_valid') # 1
             #point_info = self.get_from_tar(house_id, dp_id, 'point_info')
         except:
-            return self[random.randint(0, len(self))]
+            return self[random.randint(0, len(self)-1)]
 
         to_np = lambda x : (np.array(x).astype(np.uint8) / 127.5 - 1.0).astype(np.float32)
         np_rgb = to_np(rgb)
@@ -332,11 +329,12 @@ if __name__ == "__main__":
     #one_dataloader = OmniTrain()
     #one_dataloader[0]
 
+    dataloader2 = OmniValidation()
     dataloader = OmniValidation()
 
     for i in range(100):
-        dataloader.shuffle()
-        for x in dataloader:
+        #dataloader.shuffle()
+        for x, y in zip(dataloader, dataloader2):
             print(i)
     pdb.set_trace()
 
